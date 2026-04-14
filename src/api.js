@@ -1,4 +1,4 @@
-const API_KEY = "7310e4cc3b8847b795d33ef831189953";
+const API_KEY = "afb3440c473641b09be8ce264d99248a";
 const BASE = "https://api.spoonacular.com";
 
 // Search recipes
