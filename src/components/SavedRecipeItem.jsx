@@ -55,18 +55,6 @@ export default function SavedRecipeItem({
                 </span>
               )}
 
-              <span className="saved-item-coords">
-                {item.location?.latitude !== "##"
-                  ? `📍 ${parseFloat(item.location.latitude).toFixed(4)}, ${parseFloat(item.location.longitude).toFixed(4)}`
-                  : "📍 Location not captured"}
-              </span>
-
-              <span className="saved-item-links">
-                <a href={item.location?.mapURL || "#"} target="_blank" rel="noreferrer">(map)</a>
-                {" | "}
-                <a href={item.location?.smsURL || "#"}>(sms)</a>
-              </span>
-
               {item.photo && <span className="photo-badge">📷 Photo saved</span>}
             </div>
           </div>

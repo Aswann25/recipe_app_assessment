@@ -520,3 +520,139 @@ body {
   padding: .2rem .55rem; transition: background .15s;
 }
 .store-link:hover { background: var(--green-light); }
+
+/* ─── Permissions Gate ──────────────────────────────────────────── */
+
+.perm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.perm-box {
+  background: var(--surface);
+  border-radius: var(--radius);
+  max-width: 480px;
+  width: 100%;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.perm-header {
+  text-align: center;
+}
+
+.perm-logo {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: .5rem;
+}
+
+.perm-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin-bottom: .4rem;
+}
+
+.perm-subtitle {
+  font-size: .85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.perm-list {
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+}
+
+.perm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  border: 1px solid var(--border);
+}
+
+.perm-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: .1rem;
+}
+
+.perm-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
+.perm-title {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.perm-desc {
+  font-size: .8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.perm-status {
+  font-size: .78rem;
+  font-weight: 600;
+  margin-top: .1rem;
+}
+
+.perm-btn {
+  align-self: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.perm-hint {
+  font-size: .72rem;
+  color: var(--danger);
+  align-self: center;
+  flex-shrink: 0;
+  text-align: right;
+  max-width: 90px;
+  line-height: 1.3;
+}
+
+.perm-actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.perm-denied-hint {
+  font-size: .78rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: .75rem;
+  line-height: 1.5;
+}
+
+.perm-denied-hint strong {
+  color: var(--text);
+}
+
+/* Tighten on very small screens */
+@media (max-width: 400px) {
+  .perm-box { padding: 1.25rem 1rem 1rem; }
+  .perm-row { padding: .6rem .75rem; }
+}

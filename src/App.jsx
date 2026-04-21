@@ -10,8 +10,9 @@ import FilterButton       from "./components/FilterButton.jsx";
 import CreateRecipeForm   from "./components/CreateRecipeForm.jsx";
 import CustomRecipeDetail from "./components/CustomRecipeDetail.jsx";
 import Supermarkets       from "./components/Supermarkets.jsx";
+import PermissionsGate    from "./components/PermissionsGate.jsx";
 
-const STORAGE_KEY = "recipe-finder-saved"; 
+const STORAGE_KEY = "recipe-finder-saved";
 
 function loadSaved() {
   try {
@@ -20,43 +21,34 @@ function loadSaved() {
   } catch { return []; }
 }
 
-
+// Removed "Located" filter — location is no longer stored on recipes
 const FILTER_MAP = {
   All:          () => true,
-  Located:      (r) => r.location?.latitude !== "##",
   Photographed: (r) => r.photo === true,
   "My Recipes": (r) => r.isCustom === true,
 };
 const FILTER_NAMES = Object.keys(FILTER_MAP);
 
 export default function App() {
-  // Tabs 
   const [tab, setTab] = useState("search");
 
-  //  Search 
   const [results, setResults]   = useState([]);
   const [random, setRandom]     = useState([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
   const [searched, setSearched] = useState(false);
 
-  // Saved recipes 
   const [savedRecipes, setSavedRecipes] = useState(loadSaved);
   const [filter, setFilter]             = useState("All");
 
-  // Modals 
-  const [detailId, setDetailId]         = useState(null); 
-  const [customDetail, setCustomDetail] = useState(null); 
+  const [detailId, setDetailId]         = useState(null);
+  const [customDetail, setCustomDetail] = useState(null);
   const [showCreate, setShowCreate]     = useState(false);
- 
-  const [lastInsertedId, setLastInsertedId] = useState("");
-  const [geoStatus, setGeoStatus]           = useState("idle");
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRecipes));
   }, [savedRecipes]);
 
-  //  Load random recipes
   useEffect(() => {
     setLoading(true);
     getRandomRecipes(9)
@@ -65,62 +57,37 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Geolocation 
-  const geoSuccess = (position) => {
-    const { latitude, longitude } = position.coords;
-    const mapURL = `https://www.openstreetmap.org/#map=18/${latitude}/${longitude}`;
-    const smsURL = `sms:?body=I saved a recipe here: ${mapURL}`;
-    setGeoStatus("done");
-    setSavedRecipes((prev) =>
-      prev.map((r) =>
-        r.id === lastInsertedId
-          ? { ...r, location: { latitude, longitude, mapURL, smsURL, error: "" } }
-          : r
-      )
-    );
-  };
-  const geoError = () => setGeoStatus("error");
-  const geoFindMe = () => {  
-    if (!navigator.geolocation) { setGeoStatus("error"); return; }
-    setGeoStatus("locating");
-    navigator.geolocation.getCurrentPosition(geoSuccess, geoError);
-  };
-
-  // CREATE (Spoonacular recipe)
+  // CREATE (Spoonacular recipe) — no geolocation
   function saveRecipe(recipe) {
     if (savedRecipes.some((r) => r.spoonacularId === recipe.id)) return;
-    const id = nanoid();
     const newItem = {
-      id,
+      id: nanoid(),
       spoonacularId: recipe.id,
       name: recipe.title,
       image: recipe.image || "",
       isCustom: false,
       photo: false,
-      location: { latitude:"##", longitude:"##", mapURL:"#", smsURL:"#", error:"##" },
     };
-    setLastInsertedId(id);
     setSavedRecipes((prev) => [newItem, ...prev]);
-    geoFindMe(); // W06: immediately attach GPS
   }
 
-  // CREATE (user-made recipe)
+  // CREATE (user-made recipe) — no geolocation
   function saveCustomRecipe(recipe) {
-    setLastInsertedId(recipe.id);
-    setSavedRecipes((prev) => [recipe, ...prev]);
-    geoFindMe(); 
+    // Strip location fields if CreateRecipeForm still sets them
+    const { location, ...rest } = recipe;
+    setSavedRecipes((prev) => [rest, ...prev]);
     setShowCreate(false);
     setTab("saved");
   }
 
-  //  UPDATE name 
+  // UPDATE name
   function editRecipe(id, newName) {
     setSavedRecipes((prev) =>
       prev.map((r) => (r.id === id ? { ...r, name: newName } : r))
     );
   }
 
-  // DELETE 
+  // DELETE
   function deleteRecipe(id) {
     setSavedRecipes((prev) => prev.filter((r) => r.id !== id));
   }
@@ -131,7 +98,6 @@ export default function App() {
     );
   }
 
-  // search 
   async function handleKeywordSearch(params) {
     setLoading(true); setError(null); setResults([]); setSearched(true);
     try {
@@ -142,7 +108,6 @@ export default function App() {
     finally { setLoading(false); }
   }
 
-  // Ingredient search 
   async function handleIngredientSearch(ingredients) {
     setLoading(true); setError(null); setResults([]); setSearched(true);
     try {
@@ -159,87 +124,114 @@ export default function App() {
   const savedCount    = savedRecipes.length;
 
   return (
-    <div className="app">
+    <PermissionsGate>
+      <div className="app">
+        <header className="app-header">
+          <h1>🍳 Recipe Finder</h1>
+          <nav className="tab-nav">
+            <button className={`tab-btn ${tab==="search"?"active":""}`}       onClick={() => setTab("search")}>🔍 Search</button>
+            <button className={`tab-btn ${tab==="ingredients"?"active":""}`}  onClick={() => setTab("ingredients")}>🥦 Ingredients</button>
+            <button className={`tab-btn ${tab==="create"?"active":""}`}       onClick={() => setTab("create")}>✍️ Create</button>
+            <button className={`tab-btn ${tab==="saved"?"active":""}`}        onClick={() => setTab("saved")}>❤️ Saved ({savedCount})</button>
+            <button className={`tab-btn ${tab==="supermarkets"?"active":""}`} onClick={() => setTab("supermarkets")}>🛒 Stores</button>
+          </nav>
+        </header>
 
-      <header className="app-header">
-        <h1>🍳 Recipe Finder</h1>
-        <nav className="tab-nav">
-          <button className={`tab-btn ${tab==="search"?"active":""}`}       onClick={() => setTab("search")}>🔍 Search</button>
-          <button className={`tab-btn ${tab==="ingredients"?"active":""}`}  onClick={() => setTab("ingredients")}>🥦 Ingredients</button>
-          <button className={`tab-btn ${tab==="create"?"active":""}`}       onClick={() => setTab("create")}>✍️ Create</button>
-          <button className={`tab-btn ${tab==="saved"?"active":""}`}        onClick={() => setTab("saved")}>❤️ Saved ({savedCount})</button>
-          <button className={`tab-btn ${tab==="supermarkets"?"active":""}`} onClick={() => setTab("supermarkets")}>🛒 Stores</button>
-        </nav>
-        {geoStatus==="locating" && <span className="geo-status locating">📡 Getting location...</span>}
-        {geoStatus==="done"     && <span className="geo-status done">📍 Location saved</span>}
-        {geoStatus==="error"    && <span className="geo-status geo-error">⚠ Location unavailable</span>}
-      </header>
+        {tab === "search" && (
+          <main className="search-tab">
+            <SearchBar onSearch={handleKeywordSearch} loading={loading} />
+            {error   && <p className="error-text">{error}</p>}
+            {loading && <p className="loading-text">Loading recipes...</p>}
+            {!loading && !searched && <p className="section-label">✨ Trending recipes</p>}
+            <div className="recipe-grid">
+              {displayList.map((recipe) => (
+                <div key={recipe.id} className="recipe-card-wrapper" onClick={() => setDetailId(recipe.id)}>
+                  <RecipeCard
+                    recipe={recipe}
+                    onSave={(e) => { e.stopPropagation(); saveRecipe(recipe); }}
+                    saved={savedIds.has(recipe.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          </main>
+        )}
 
-      {tab === "search" && (
-        <main className="search-tab">
-          <SearchBar onSearch={handleKeywordSearch} loading={loading} />
-          {error   && <p className="error-text">{error}</p>}
-          {loading && <p className="loading-text">Loading recipes...</p>}
-          {!loading && !searched && <p className="section-label">✨ Trending recipes</p>}
-          <div className="recipe-grid">
-            {displayList.map((recipe) => (
-              <div key={recipe.id} className="recipe-card-wrapper" onClick={() => setDetailId(recipe.id)}>
-                <RecipeCard
-                  recipe={recipe}
-                  onSave={(e) => { e.stopPropagation(); saveRecipe(recipe); }}
-                  saved={savedIds.has(recipe.id)}
-                />
-              </div>
-            ))}
-          </div>
-        </main>
-      )}
+        {tab === "ingredients" && (
+          <main className="search-tab">
+            <IngredientSearch onSearch={handleIngredientSearch} loading={loading} />
+            {error   && <p className="error-text">{error}</p>}
+            {loading && <p className="loading-text">Finding recipes with your ingredients...</p>}
+            {results.length > 0 && (
+              <p className="section-label">Found {results.length} recipe{results.length!==1?"s":""}</p>
+            )}
+            <div className="recipe-grid">
+              {results.map((recipe) => (
+                <div key={recipe.id} className="recipe-card-wrapper" onClick={() => setDetailId(recipe.id)}>
+                  <RecipeCard
+                    recipe={recipe}
+                    onSave={(e) => { e.stopPropagation(); saveRecipe(recipe); }}
+                    saved={savedIds.has(recipe.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          </main>
+        )}
 
-      {tab === "ingredients" && (
-        <main className="search-tab">
-          <IngredientSearch onSearch={handleIngredientSearch} loading={loading} />
-          {error   && <p className="error-text">{error}</p>}
-          {loading && <p className="loading-text">Finding recipes with your ingredients...</p>}
-          {results.length > 0 && (
-            <p className="section-label">Found {results.length} recipe{results.length!==1?"s":""}</p>
-          )}
-          <div className="recipe-grid">
-            {results.map((recipe) => (
-              <div key={recipe.id} className="recipe-card-wrapper" onClick={() => setDetailId(recipe.id)}>
-                <RecipeCard
-                  recipe={recipe}
-                  onSave={(e) => { e.stopPropagation(); saveRecipe(recipe); }}
-                  saved={savedIds.has(recipe.id)}
-                />
-              </div>
-            ))}
-          </div>
-        </main>
-      )}
-
-      {tab === "create" && (
-        <main className="create-tab">
-          <div className="create-tab-intro">
-            <h2>✍️ Create Your Own Recipe</h2>
-            <p className="muted-text">
-              Write, save, and photograph your own recipes. They'll appear in My Recipes alongside ones you find.
-            </p>
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={() => setShowCreate(true)}
-            >
-              + New Recipe
-            </button>
-          </div>
-
-          
-          {savedRecipes.filter((r) => r.isCustom).length > 0 && (
-            <>
-              <p className="section-label" style={{ marginTop: "1.5rem" }}>
-                Your recipes ({savedRecipes.filter((r) => r.isCustom).length})
+        {tab === "create" && (
+          <main className="create-tab">
+            <div className="create-tab-intro">
+              <h2>✍️ Create Your Own Recipe</h2>
+              <p className="muted-text">
+                Write, save, and photograph your own recipes. They'll appear in My Recipes alongside ones you find.
               </p>
+              <button className="btn btn-primary btn-lg" onClick={() => setShowCreate(true)}>
+                + New Recipe
+              </button>
+            </div>
+
+            {savedRecipes.filter((r) => r.isCustom).length > 0 && (
+              <>
+                <p className="section-label" style={{ marginTop: "1.5rem" }}>
+                  Your recipes ({savedRecipes.filter((r) => r.isCustom).length})
+                </p>
+                <ul className="saved-list">
+                  {savedRecipes.filter((r) => r.isCustom).map((item) => (
+                    <SavedRecipeItem
+                      key={item.id}
+                      item={item}
+                      onDelete={deleteRecipe}
+                      onEdit={editRecipe}
+                      onViewDetail={setDetailId}
+                      onViewCustom={setCustomDetail}
+                      photoedTask={photoedTask}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+          </main>
+        )}
+
+        {tab === "saved" && (
+          <main className="saved-tab">
+            <div className="saved-header">
+              <h2>My Saved Recipes</h2>
+              <div className="filter-bar">
+                {FILTER_NAMES.map((name) => (
+                  <FilterButton key={name} name={name} isPressed={name===filter} setFilter={setFilter} />
+                ))}
+              </div>
+            </div>
+
+            {savedRecipes.length === 0 ? (
+              <p className="muted-text">No saved recipes yet.</p>
+            ) : filteredSaved.length === 0 ? (
+              <p className="muted-text">No recipes match "{filter}".</p>
+            ) : (
               <ul className="saved-list">
-                {savedRecipes.filter((r) => r.isCustom).map((item) => (
+                {filteredSaved.map((item) => (
                   <SavedRecipeItem
                     key={item.id}
                     item={item}
@@ -251,68 +243,35 @@ export default function App() {
                   />
                 ))}
               </ul>
-            </>
-          )}
-        </main>
-      )}
+            )}
+          </main>
+        )}
 
-      {tab === "saved" && (
-        <main className="saved-tab">
-          <div className="saved-header">
-            <h2>My Saved Recipes</h2>
-            <div className="filter-bar">
-              {FILTER_NAMES.map((name) => (
-                <FilterButton key={name} name={name} isPressed={name===filter} setFilter={setFilter} />
-              ))}
-            </div>
-          </div>
+        {tab === "supermarkets" && <Supermarkets />}
 
-          {savedRecipes.length === 0 ? (
-            <p className="muted-text">No saved recipes yet.</p>
-          ) : filteredSaved.length === 0 ? (
-            <p className="muted-text">No recipes match "{filter}".</p>
-          ) : (
-            <ul className="saved-list">
-              {filteredSaved.map((item) => (
-                <SavedRecipeItem
-                  key={item.id}
-                  item={item}
-                  onDelete={deleteRecipe}
-                  onEdit={editRecipe}
-                  onViewDetail={setDetailId}
-                  onViewCustom={setCustomDetail}
-                  photoedTask={photoedTask}
-                />
-              ))}
-            </ul>
-          )}
-        </main>
-      )}
+        {detailId && (
+          <RecipeDetail
+            recipeId={detailId}
+            onClose={() => setDetailId(null)}
+            onSave={(recipe) => { saveRecipe(recipe); setDetailId(null); setTab("saved"); }}
+            saved={savedIds.has(detailId)}
+          />
+        )}
 
-      {tab === "supermarkets" && <Supermarkets />}
+        {customDetail && (
+          <CustomRecipeDetail
+            recipe={customDetail}
+            onClose={() => setCustomDetail(null)}
+          />
+        )}
 
-      {detailId && (
-        <RecipeDetail
-          recipeId={detailId}
-          onClose={() => setDetailId(null)}
-          onSave={(recipe) => { saveRecipe(recipe); setDetailId(null); setTab("saved"); }}
-          saved={savedIds.has(detailId)}
-        />
-      )}
-
-      {customDetail && (
-        <CustomRecipeDetail
-          recipe={customDetail}
-          onClose={() => setCustomDetail(null)}
-        />
-      )}
-
-      {showCreate && (
-        <CreateRecipeForm
-          onSave={saveCustomRecipe}
-          onCancel={() => setShowCreate(false)}
-        />
-      )}
-    </div>
+        {showCreate && (
+          <CreateRecipeForm
+            onSave={saveCustomRecipe}
+            onCancel={() => setShowCreate(false)}
+          />
+        )}
+      </div>
+    </PermissionsGate>
   );
 }
