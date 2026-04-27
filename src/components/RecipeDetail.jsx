@@ -6,6 +6,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // fetch full recipe details whenever the selected recipeId changes
   useEffect(() => {
     if (!recipeId) return;
     setLoading(true);
@@ -17,6 +18,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
   }, [recipeId]);
 
   return (
+    // clicking the overlay closes the modal
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>✕</button>
@@ -29,6 +31,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
             <img className="detail-img" src={detail.image} alt={detail.title} />
             <h2 className="detail-title">{detail.title}</h2>
 
+            {/* only render each meta item if the value exists */}
             <div className="detail-meta">
               {detail.readyInMinutes && <span>⏱ {detail.readyInMinutes} min</span>}
               {detail.servings && <span>🍽 {detail.servings} servings</span>}
@@ -36,6 +39,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
               {detail.diets?.length > 0 && <span>🥗 {detail.diets.join(", ")}</span>}
             </div>
 
+            {/* strip anchor tags from the API-provided HTML summary */}
             {detail.summary && (
               <div
                 className="detail-summary"
@@ -52,6 +56,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
               ))}
             </ul>
 
+            {/* only render instructions if the API returned at least one step */}
             {detail.analyzedInstructions?.[0]?.steps?.length > 0 && (
               <>
                 <h3>Instructions</h3>
@@ -63,6 +68,7 @@ export default function RecipeDetail({ recipeId, onClose, onSave, saved }) {
               </>
             )}
 
+            {/* button is disabled and styled differently once saved */}
             <button
               className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
               onClick={() => onSave(detail)}

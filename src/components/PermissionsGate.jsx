@@ -1,18 +1,9 @@
-/**
- * PermissionsGate.jsx
- * Shows a friendly permission request screen on first launch (mobile PWA).
- * Renders children once permissions are resolved (granted or permanently skipped).
- *
- * Usage in App.jsx:
- *   import PermissionsGate from "./components/PermissionsGate.jsx";
- *   // Wrap your app:
- *   <PermissionsGate>{...your app JSX...}</PermissionsGate>
- */
 import { useState } from "react";
 import { usePermissions } from "../usePermissions.js";
 
-const STORAGE_FLAG = "recipe-permissions-seen";
+const STORAGE_FLAG = "recipe-permissions-seen"; // remembers if the user has seen the gate
 
+// shows one permission with its status and an Allow button if not yet granted
 function PermissionRow({ icon, title, description, status, onRequest, requesting }) {
   const statusColors = {
     granted: "var(--green)",
@@ -37,6 +28,7 @@ function PermissionRow({ icon, title, description, status, onRequest, requesting
           {statusLabels[status] ?? status}
         </span>
       </div>
+      {/* still requestable — show Allow button */}
       {(status === "prompt" || status === "unknown") && (
         <button
           className="btn btn-primary btn-sm perm-btn"
@@ -46,6 +38,7 @@ function PermissionRow({ icon, title, description, status, onRequest, requesting
           {requesting ? "Requesting…" : "Allow"}
         </button>
       )}
+      {/* denied — user must go to device settings */}
       {status === "denied" && (
         <span className="perm-hint">Enable in device settings</span>
       )}
@@ -57,30 +50,33 @@ export default function PermissionsGate({ children }) {
   const { permissions, loading, requestCamera, requestGeolocation, requestNotifications } =
     usePermissions();
 
-  // Whether the user has already seen the gate and chosen to proceed
+  // read localStorage so the gate only appears on first launch
   const [dismissed, setDismissed] = useState(
     () => !!localStorage.getItem(STORAGE_FLAG)
   );
 
-  // Per-permission requesting spinner flags
+  // tracks which permission is mid-request to show a spinner
   const [requesting, setRequesting] = useState({
     camera: false, geolocation: false, notifications: false,
   });
 
+  // set the loading flag for a permission, run the request, then clear it
   async function handleRequest(key, fn) {
     setRequesting((p) => ({ ...p, [key]: true }));
     await fn();
     setRequesting((p) => ({ ...p, [key]: false }));
   }
 
+  // persist the flag and close the gate
   function handleContinue() {
     localStorage.setItem(STORAGE_FLAG, "1");
     setDismissed(true);
   }
 
-  // If already dismissed, or still loading initial state, just render children
+  // skip the gate if already seen or permissions are still loading
   if (dismissed || loading) return children;
 
+  // notifications are optional; only camera and geolocation are required
   const allGranted =
     permissions.camera === "granted" && permissions.geolocation === "granted";
 
@@ -125,6 +121,7 @@ export default function PermissionsGate({ children }) {
           </div>
 
           <div className="perm-actions">
+            {/* hide Skip once everything is granted */}
             {!allGranted && (
               <button className="btn btn-secondary" onClick={handleContinue}>
                 Skip for now
@@ -135,6 +132,7 @@ export default function PermissionsGate({ children }) {
             </button>
           </div>
 
+          {/* hint shown if camera or location was denied */}
           {permissions.camera === "denied" || permissions.geolocation === "denied" ? (
             <p className="perm-denied-hint">
               ⚠ Some permissions were denied. To enable them, open your browser or device
@@ -145,7 +143,7 @@ export default function PermissionsGate({ children }) {
         </div>
       </div>
 
-      {/* Always render children behind the overlay so the app is ready */}
+      {/* render children behind the overlay so the app mounts early */}
       <div aria-hidden="true" style={{ visibility: "hidden", pointerEvents: "none" }}>
         {children}
       </div>

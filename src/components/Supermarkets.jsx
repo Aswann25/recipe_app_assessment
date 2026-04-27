@@ -1,8 +1,7 @@
 import { useState } from "react";
 
-// Single compact query — one union for nodes, one for ways.
-// Using "shop" tag only (the most reliable OSM tag for retail stores).
-// Ways use "out center" so we get a lat/lon for building-footprint entries.
+// Build an Overpass API query to find food/grocery shops within a radius
+// Targets both nodes (point features) and ways (building footprints)
 function buildOverpassQuery(lat, lon, radius) {
   const around = `(around:${radius},${lat},${lon})`;
   const shopTypes = `["shop"~"supermarket|convenience|grocery|food|general"]`;
@@ -16,8 +15,9 @@ function buildOverpassQuery(lat, lon, radius) {
   `;
 }
 
+// Calculate straight-line distance between two lat/lon points (in km)
 function distanceKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
+  const R = 6371; // Earth's radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -28,6 +28,7 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Available search radius options shown to the user
 const RADIUS_OPTIONS = [
   { label: "500 m", value: 500 },
   { label: "1 km",  value: 1000 },
@@ -40,15 +41,17 @@ export default function Supermarkets() {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState(null);
   const [userCoords, setUserCoords] = useState(null);
-  const [radius, setRadius]         = useState(2000);
+  const [radius, setRadius]         = useState(2000); // default search radius: 2 km
   const [searched, setSearched]     = useState(false);
 
   async function findSupermarkets() {
+    // Reset state before starting a new search
     setLoading(true);
     setError(null);
     setStores([]);
     setSearched(true);
 
+    // Check that the browser supports geolocation
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your browser.");
       setLoading(false);
@@ -63,7 +66,7 @@ export default function Supermarkets() {
         try {
           const query = buildOverpassQuery(latitude, longitude, radius);
 
-          // Try primary endpoint, fall back to mirror on 429/5xx
+          // Try the primary Overpass endpoint; fall back to a mirror on rate-limit or server errors
           const ENDPOINTS = [
             "https://overpass-api.de/api/interpreter",
             "https://overpass.kumi.systems/api/interpreter",
@@ -78,39 +81,42 @@ export default function Supermarkets() {
           if (!res.ok) throw new Error(`Overpass API error: ${res.status} — try again in a moment`);
           const data = await res.json();
 
-          // Deduplicate by name + approximate position
+          // Track seen stores to avoid showing duplicates
           const seen = new Set();
           const results = data.elements
             .filter((el) => {
-              // nodes have lat/lon directly; ways have a "center" object
+              // Nodes have lat/lon directly; ways expose coordinates via a "center" object
               const lat = el.lat ?? el.center?.lat;
               const lon = el.lon ?? el.center?.lon;
-              return lat && lon && el.tags?.name;
+              return lat && lon && el.tags?.name; // skip entries without a name or position
             })
             .map((el) => {
               const lat = el.lat ?? el.center.lat;
               const lon = el.lon ?? el.center.lon;
               return {
-                id:           el.id,
-                name:         el.tags.name,
-                brand:        el.tags.brand || el.tags.operator || "",
+                id:            el.id,
+                name:          el.tags.name,
+                brand:         el.tags.brand || el.tags.operator || "",
                 opening_hours: el.tags.opening_hours || "",
-                phone:        el.tags.phone || el.tags["contact:phone"] || "",
-                website:      el.tags.website || el.tags["contact:website"] || "",
+                phone:         el.tags.phone || el.tags["contact:phone"] || "",
+                website:       el.tags.website || el.tags["contact:website"] || "",
                 lat,
                 lon,
-                distance:     distanceKm(latitude, longitude, lat, lon),
-                mapURL:       `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`,
-                directionsURL:`https://www.google.com/maps/dir/${latitude},${longitude}/${lat},${lon}`,
+                distance:      distanceKm(latitude, longitude, lat, lon),
+                // Link to view the pin on OpenStreetMap
+                mapURL:        `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`,
+                // Link to get driving/walking directions via Google Maps
+                directionsURL: `https://www.google.com/maps/dir/${latitude},${longitude}/${lat},${lon}`,
               };
             })
-            // Remove duplicates (same name within ~50 m)
+            // Deduplicate: same name within ~50 m counts as one store
             .filter((store) => {
               const key = `${store.name.toLowerCase()}_${store.lat.toFixed(3)}_${store.lon.toFixed(3)}`;
               if (seen.has(key)) return false;
               seen.add(key);
               return true;
             })
+            // Sort by distance, nearest first
             .sort((a, b) => a.distance - b.distance);
 
           if (results.length === 0) {
@@ -123,6 +129,7 @@ export default function Supermarkets() {
           setLoading(false);
         }
       },
+      // Handle geolocation errors with user-friendly messages
       (err) => {
         setLoading(false);
         if (err.code === 1)      setError("Location permission denied. Please allow location access and try again.");
@@ -135,6 +142,7 @@ export default function Supermarkets() {
 
   return (
     <div className="supermarkets-tab">
+      {/* Page header */}
       <div className="supermarkets-header">
         <h2>🛒 Shops Near Me</h2>
         <p className="muted-text">
@@ -142,6 +150,7 @@ export default function Supermarkets() {
         </p>
       </div>
 
+      {/* Radius selector and search button */}
       <div className="supermarkets-controls">
         <div className="radius-selector">
           <label className="form-label">Search radius:</label>
@@ -167,6 +176,7 @@ export default function Supermarkets() {
         </button>
       </div>
 
+      {/* Show detected coordinates and a map link once location is known */}
       {userCoords && (
         <p className="your-location">
           📍 Your location: {userCoords.latitude.toFixed(5)}, {userCoords.longitude.toFixed(5)}
@@ -181,14 +191,17 @@ export default function Supermarkets() {
         </p>
       )}
 
+      {/* Error message */}
       {error && <p className="error-text">{error}</p>}
 
+      {/* Loading indicator */}
       {loading && (
         <div className="loading-stores">
           <p className="loading-text">📡 Getting your location and searching nearby stores...</p>
         </div>
       )}
 
+      {/* Store results list */}
       {!loading && stores.length > 0 && (
         <>
           <p className="section-label">
@@ -198,6 +211,7 @@ export default function Supermarkets() {
           <ul className="store-list">
             {stores.map((store) => (
               <li key={store.id} className="store-item">
+                {/* Store name and distance */}
                 <div className="store-main">
                   <span className="store-name">🏪 {store.name}</span>
                   <span className="store-distance">
@@ -207,20 +221,24 @@ export default function Supermarkets() {
                   </span>
                 </div>
 
+                {/* Only show brand if it differs from the store name */}
                 {store.brand && store.brand !== store.name && (
                   <span className="store-brand">{store.brand}</span>
                 )}
 
+                {/* Optional opening hours */}
                 {store.opening_hours && (
                   <span className="store-hours">🕐 {store.opening_hours}</span>
                 )}
 
+                {/* Optional phone number */}
                 {store.phone && (
                   <span className="store-phone">
                     📞 <a href={`tel:${store.phone}`}>{store.phone}</a>
                   </span>
                 )}
 
+                {/* Action links: map, directions, website */}
                 <div className="store-links">
                   <a href={store.mapURL} target="_blank" rel="noreferrer" className="store-link">
                     🗺 View on map
@@ -240,6 +258,7 @@ export default function Supermarkets() {
         </>
       )}
 
+      {/* Empty state after a search with no results and no error */}
       {!loading && searched && stores.length === 0 && !error && (
         <p className="muted-text">No stores found.</p>
       )}

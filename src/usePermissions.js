@@ -1,51 +1,45 @@
-/**
- * usePermissions.js
- * Custom hook for managing camera, geolocation, and notification permissions
- * on mobile PWA / phone app environments.
- */
 import { useState, useEffect, useCallback } from "react";
+import { Camera, CameraPermissionState } from "@capacitor/camera";
+import { Geolocation } from "@capacitor/geolocation";
 
+// Custom hook that checks and requests camera, geolocation, and notification permissions
 export function usePermissions() {
+  // Track the current state of each permission
   const [permissions, setPermissions] = useState({
-    camera:      "unknown", // "granted" | "denied" | "prompt" | "unknown"
-    geolocation: "unknown",
+    camera:        "unknown",
+    geolocation:   "unknown",
     notifications: "unknown",
   });
   const [loading, setLoading] = useState(true);
 
-  // Query the current state of each permission
+  // Query the current status of all three permissions without prompting the user
   const queryPermissions = useCallback(async () => {
-    const results = { camera: "unknown", geolocation: "unknown", notifications: "unknown" };
+    const results = {
+      camera:        "unknown",
+      geolocation:   "unknown",
+      notifications: "unknown",
+    };
 
-    // Camera
-    if (navigator.permissions) {
-      try {
-        const cam = await navigator.permissions.query({ name: "camera" });
-        results.camera = cam.state; // "granted" | "denied" | "prompt"
-        cam.addEventListener("change", () =>
-          setPermissions((p) => ({ ...p, camera: cam.state }))
-        );
-      } catch {
-        // Some browsers (e.g. Firefox) don't support querying camera
-        results.camera = "unknown";
-      }
+    // Camera — use Capacitor native plugin
+    try {
+      const camStatus = await Camera.checkPermissions();
+      results.camera = camStatus.camera; // "granted" | "denied" | "prompt"
+    } catch {
+      results.camera = "unknown";
     }
 
-    // Geolocation
-    if (navigator.permissions) {
-      try {
-        const geo = await navigator.permissions.query({ name: "geolocation" });
-        results.geolocation = geo.state;
-        geo.addEventListener("change", () =>
-          setPermissions((p) => ({ ...p, geolocation: geo.state }))
-        );
-      } catch {
-        results.geolocation = "unknown";
-      }
+    // Geolocation — use Capacitor native plugin
+    try {
+      const geoStatus = await Geolocation.checkPermissions();
+      results.geolocation = geoStatus.location; // "granted" | "denied" | "prompt"
+    } catch {
+      results.geolocation = "unknown";
     }
 
-    // Notifications
+    // Notifications — use the web Notification API as Capacitor's free tier
+    // doesn't include a dedicated notifications permissions plugin
     if ("Notification" in window) {
+      // Normalise "default" (never asked) to "prompt" to match the other permission states
       results.notifications =
         Notification.permission === "default" ? "prompt" : Notification.permission;
     }
@@ -54,51 +48,44 @@ export function usePermissions() {
     setLoading(false);
   }, []);
 
+  // Run the permission check once on mount
   useEffect(() => {
     queryPermissions();
   }, [queryPermissions]);
 
-  // Request camera access
+  // Request camera permission — triggers the native Android dialog if not yet decided
   const requestCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      // Stop tracks immediately — we just needed the prompt to fire
-      stream.getTracks().forEach((t) => t.stop());
-      setPermissions((p) => ({ ...p, camera: "granted" }));
-      return "granted";
-    } catch (err) {
-      const state = err.name === "NotAllowedError" ? "denied" : "unknown";
+      const result = await Camera.requestPermissions({ permissions: ["camera"] });
+      const state = result.camera;
       setPermissions((p) => ({ ...p, camera: state }));
       return state;
+    } catch {
+      // If the plugin throws, treat it as denied
+      setPermissions((p) => ({ ...p, camera: "denied" }));
+      return "denied";
     }
   }, []);
 
-  // Request geolocation access
-  const requestGeolocation = useCallback(() =>
-    new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        setPermissions((p) => ({ ...p, geolocation: "denied" }));
-        return resolve("denied");
-      }
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setPermissions((p) => ({ ...p, geolocation: "granted" }));
-          resolve("granted");
-        },
-        (err) => {
-          const state = err.code === 1 ? "denied" : "unknown";
-          setPermissions((p) => ({ ...p, geolocation: state }));
-          resolve(state);
-        },
-        { timeout: 10000 }
-      );
-    }), []);
+  // Request geolocation permission — triggers the native Android dialog if not yet decided
+  const requestGeolocation = useCallback(async () => {
+    try {
+      const result = await Geolocation.requestPermissions();
+      const state = result.location;
+      setPermissions((p) => ({ ...p, geolocation: state }));
+      return state;
+    } catch {
+      // If the plugin throws, treat it as denied
+      setPermissions((p) => ({ ...p, geolocation: "denied" }));
+      return "denied";
+    }
+  }, []);
 
-  // Request notification permission
+  // Request notification permission using the web Notification API
   const requestNotifications = useCallback(async () => {
-    if (!("Notification" in window)) return "denied";
+    if (!("Notification" in window)) return "denied"; // not supported in this environment
     const result = await Notification.requestPermission();
-    const state = result === "default" ? "prompt" : result;
+    const state = result === "default" ? "prompt" : result; // normalise "default" to "prompt"
     setPermissions((p) => ({ ...p, notifications: state }));
     return state;
   }, []);
@@ -109,6 +96,6 @@ export function usePermissions() {
     requestCamera,
     requestGeolocation,
     requestNotifications,
-    refetch: queryPermissions,
+    refetch: queryPermissions, // expose so components can re-check after returning from settings
   };
 }

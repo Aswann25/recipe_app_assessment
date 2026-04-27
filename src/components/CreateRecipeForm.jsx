@@ -5,22 +5,25 @@ const CUISINES = ["", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Fr
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
 export default function CreateRecipeForm({ onSave, onCancel }) {
-  const [name, setName]             = useState("");
+  const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
-  const [cuisine, setCuisine]       = useState("");
-  const [difficulty, setDifficulty] = useState("Easy");
-  const [prepTime, setPrepTime]     = useState("");
-  const [cookTime, setCookTime]     = useState("");
-  const [servings, setServings]     = useState("");
+  const [cuisine, setCuisine]         = useState("");
+  const [difficulty, setDifficulty]   = useState("Easy");
+  const [prepTime, setPrepTime]       = useState("");
+  const [cookTime, setCookTime]       = useState("");
+  const [servings, setServings]       = useState("");
 
+  // each ingredient has an id, amount, unit, and name
   const [ingredients, setIngredients] = useState([
     { id: nanoid(), amount: "", unit: "", name: "" },
   ]);
 
+  // each step has an id and text
   const [steps, setSteps] = useState([{ id: nanoid(), text: "" }]);
 
   const [error, setError] = useState(null);
 
+  // update one field on a specific ingredient
   function updateIngredient(id, field, value) {
     setIngredients((prev) =>
       prev.map((ing) => (ing.id === id ? { ...ing, [field]: value } : ing))
@@ -33,6 +36,7 @@ export default function CreateRecipeForm({ onSave, onCancel }) {
     setIngredients((prev) => prev.filter((ing) => ing.id !== id));
   }
 
+  // update the text of a specific step
   function updateStep(id, value) {
     setSteps((prev) =>
       prev.map((s) => (s.id === id ? { ...s, text: value } : s))
@@ -49,12 +53,14 @@ export default function CreateRecipeForm({ onSave, onCancel }) {
     e.preventDefault();
     setError(null);
 
+    // validate required fields
     if (!name.trim()) { setError("Recipe name is required."); return; }
     const filledIngredients = ingredients.filter((i) => i.name.trim());
     if (filledIngredients.length === 0) { setError("Add at least one ingredient."); return; }
     const filledSteps = steps.filter((s) => s.text.trim());
     if (filledSteps.length === 0) { setError("Add at least one instruction step."); return; }
 
+    // readyInMinutes is the sum of prep and cook time
     const recipe = {
       id: nanoid(),
       isCustom: true,
@@ -87,6 +93,7 @@ export default function CreateRecipeForm({ onSave, onCancel }) {
         </div>
 
         <form onSubmit={handleSubmit} className="create-form">
+          {/* validation error */}
           {error && <p className="error-text">{error}</p>}
 
           <section className="form-section">
@@ -170,6 +177,7 @@ export default function CreateRecipeForm({ onSave, onCancel }) {
                   value={ing.name}
                   onChange={(e) => updateIngredient(ing.id, "name", e.target.value)}
                 />
+                {/* hide remove button when only one ingredient remains */}
                 {ingredients.length > 1 && (
                   <button
                     type="button"
@@ -198,6 +206,7 @@ export default function CreateRecipeForm({ onSave, onCancel }) {
                   value={step.text}
                   onChange={(e) => updateStep(step.id, e.target.value)}
                 />
+                {/* hide remove button when only one step remains */}
                 {steps.length > 1 && (
                   <button
                     type="button"

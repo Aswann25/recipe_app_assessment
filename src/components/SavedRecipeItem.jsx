@@ -11,6 +11,7 @@ export default function SavedRecipeItem({
   const [newName, setNewName]     = useState(item.name);
   const editBtnRef                = useRef(null);
 
+  // block submission if the name is empty, then pass the new name to the parent
   function handleEdit(e) {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -20,6 +21,7 @@ export default function SavedRecipeItem({
 
   return (
     <li className="saved-item">
+      {/* swap the row for an inline edit form when editing */}
       {isEditing ? (
         <form className="edit-form" onSubmit={handleEdit}>
           <input
@@ -36,6 +38,7 @@ export default function SavedRecipeItem({
       ) : (
         <>
           <div className="saved-item-info">
+            {/* API recipes show a thumbnail; custom recipes show an emoji placeholder */}
             {item.image ? (
               <img className="saved-item-thumb" src={item.image} alt={item.name} />
             ) : item.isCustom ? (
@@ -48,6 +51,7 @@ export default function SavedRecipeItem({
                 {item.isCustom && <span className="custom-badge-inline">Your recipe</span>}
               </span>
 
+              {/* cuisine, difficulty, and time — only shown for custom recipes */}
               {item.isCustom && (item.cuisine || item.difficulty) && (
                 <span className="saved-item-meta">
                   {[item.cuisine, item.difficulty].filter(Boolean).join(" · ")}
@@ -60,6 +64,7 @@ export default function SavedRecipeItem({
           </div>
 
           <div className="saved-item-actions">
+            {/* custom recipes open their own detail view; API recipes open the modal */}
             {item.isCustom ? (
               <button className="btn btn-sm" onClick={() => onViewCustom(item)}>
                 View Recipe
@@ -78,6 +83,7 @@ export default function SavedRecipeItem({
               Edit
             </button>
 
+            {/* camera capture and photo viewer each open in a modal popup */}
             <Popup trigger={<button className="btn btn-sm">📷 Photo</button>} modal>
               <CameraCapture id={item.id} photoedTask={photoedTask} />
             </Popup>

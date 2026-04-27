@@ -4,10 +4,11 @@ const CUISINES = ["", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Fr
 const DIETS = ["", "vegetarian", "vegan", "gluten free", "ketogenic", "paleo", "dairy free"];
 
 export default function SearchBar({ onSearch, loading }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery]     = useState("");
   const [cuisine, setCuisine] = useState("");
-  const [diet, setDiet] = useState("");
+  const [diet, setDiet]       = useState("");
 
+  // block submission if the query is empty
   function handleSubmit(e) {
     e.preventDefault();
     if (!query.trim()) return;
@@ -28,6 +29,7 @@ export default function SearchBar({ onSearch, loading }) {
           {loading ? "Searching..." : "Search"}
         </button>
       </div>
+      {/* filter dropdowns — empty string means no filter applied */}
       <div className="filter-row">
         <select value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
           <option value="">All cuisines</option>

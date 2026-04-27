@@ -1,6 +1,7 @@
 export default function RecipeCard({ recipe, onSave, saved }) {
   return (
     <div className="recipe-card">
+      {/* fall back to a placeholder if the recipe has no image */}
       <img
         className="recipe-card-img"
         src={recipe.image || "https://via.placeholder.com/312x231?text=No+Image"}
@@ -10,6 +11,7 @@ export default function RecipeCard({ recipe, onSave, saved }) {
       <div className="recipe-card-body">
         <h3 className="recipe-card-title">{recipe.title}</h3>
         <div className="recipe-card-meta">
+          {/* only render meta items if the values exist */}
           {recipe.readyInMinutes && (
             <span>⏱ {recipe.readyInMinutes} min</span>
           )}
@@ -17,6 +19,7 @@ export default function RecipeCard({ recipe, onSave, saved }) {
             <span>🍽 {recipe.servings} servings</span>
           )}
         </div>
+        {/* button is disabled and styled differently once saved */}
         <button
           className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
           onClick={() => onSave(recipe)}
